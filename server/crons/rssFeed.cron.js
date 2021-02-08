@@ -1,11 +1,34 @@
+import axios from 'axios';
 import { toXML } from 'jstoxml';
+import xml2js from 'xml2js';
 import { cloneDeep } from 'lodash';
 import moment from 'moment';
 import config from '../../config/config';
 import CronItem from '../helpers/cronItem.helper';
-import { getAdFreeMp3 } from '../helpers/mp3.helper';
 import app from '../../config/express';
 import Post from '../models/post.model';
+
+const PRIVATE_RSS_URL = 'https://feeds.megaphone.fm/SED2675996583';
+
+async function getPrivateFeed() {
+  const builder = new xml2js.Builder({ cdata: true });
+  const parser = new xml2js.Parser({ explicitArray: false });
+  let parsedResult = {};
+  try {
+    const feedResult = await axios.get(PRIVATE_RSS_URL);
+    if (feedResult.status === 200) {
+      parser.parseString(feedResult.data, (err, result) => {
+        if (err) {
+          throw err;
+        }
+        parsedResult = result;
+      });
+    }
+  } catch (error) {
+    console.log(error);// eslint-disable-line
+  }
+  return builder.buildObject(parsedResult);
+}
 
 const itunesImage = toXML({
   _name: 'itunes:image',
@@ -88,7 +111,7 @@ async function callback() {
 
   const publicFeedAllConfig = cloneDeep(rawFeedConfig);
   const publicFeedConfig = cloneDeep(rawFeedConfig);
-  const privateFeedConfig = cloneDeep(rawFeedConfig);
+  const privateFeedConfig = await getPrivateFeed();
   const lastPost = posts[posts.length - 1];
 
   let episode = posts.length + 1;
@@ -138,12 +161,6 @@ async function callback() {
 
     // RSS item for each episode
     publicFeedConfig._content.channel.push({ item });
-
-    const privateMp3 = post.adFreeMp3 || getAdFreeMp3(post.mp3);
-    const privateItem = cloneDeep(item);
-
-    privateItem[0]._attrs.url = privateMp3;
-    privateFeedConfig._content.channel.push({ item: privateItem });
   });
 
   publicFeedAllConfig._content.channel = publicFeedConfig._content.channel;
@@ -156,7 +173,7 @@ async function callback() {
 
   app.set('rssFeedPublicAll', toXML(publicFeedAllConfig, xmlOptions));
   app.set('rssFeedPublic', toXML(publicFeedConfig, xmlOptions));
-  app.set('rssFeedPrivate', toXML(privateFeedConfig, xmlOptions));
+  app.set('rssFeedPrivate', privateFeedConfig);
 }
 
 const rssFeed = {

@@ -79,8 +79,8 @@ const config = {
   },
   cron: {
     RSS: {
-      time: '0 15 9,10,11,12,14,16,19,21 * * *',
-      timeZone: null
+      time: '30 2 * * *',
+      timeZone: 'America/Los_Angeles'
     }
   }
 };
