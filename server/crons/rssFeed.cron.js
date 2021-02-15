@@ -22,6 +22,7 @@ async function getPrivateFeed() {
           throw err;
         }
         parsedResult = result;
+        parsedResult.rss.channel.item = parsedResult.rss.channel.item.slice(0, 300);
       });
     }
   } catch (error) {
@@ -102,6 +103,8 @@ function encode(text) {
 }
 
 async function callback() {
+  const privateFeedConfig = await getPrivateFeed();
+
   const posts = await Post.find().where('status').equals('publish').lean();
 
   // mongoose sort is slower
@@ -111,7 +114,6 @@ async function callback() {
 
   const publicFeedAllConfig = cloneDeep(rawFeedConfig);
   const publicFeedConfig = cloneDeep(rawFeedConfig);
-  const privateFeedConfig = await getPrivateFeed();
   const lastPost = posts[posts.length - 1];
 
   let episode = posts.length + 1;
